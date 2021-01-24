@@ -17,9 +17,6 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
-import com.google.cloud.bigquery.Job;
-import com.google.cloud.bigquery.JobId;
-import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition;
@@ -35,7 +32,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.StreamSupport;
@@ -106,20 +102,9 @@ public class BigQueryClient
     public TableResult query(TableId table, List<String> requiredColumns, Optional<String> filter)
     {
         String sql = selectSql(table, requiredColumns, filter);
-        QueryJobConfiguration jobConfiguration = QueryJobConfiguration.newBuilder(sql).build();
-        JobId jobId = JobId.of(UUID.randomUUID().toString());
-        Job queryJob = bigQuery.create(JobInfo.newBuilder(jobConfiguration).setJobId(jobId).build());
-
         log.debug("Execute query: %s", sql);
         try {
-            queryJob = queryJob.waitFor();
-            if (queryJob == null) {
-                throw new RuntimeException("Job no longer exists");
-            }
-            if (queryJob.getStatus().getError() != null) {
-                throw new RuntimeException(queryJob.getStatus().getError().toString());
-            }
-            return queryJob.getQueryResults();
+            return bigQuery.query(QueryJobConfiguration.of(sql));
         }
         catch (InterruptedException e) {
             Thread.currentThread().interrupt();
