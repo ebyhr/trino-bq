@@ -44,6 +44,7 @@ import io.trino.spi.connector.TableNotFoundException;
 import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.predicate.TupleDomain;
 
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 
 import java.util.List;
@@ -126,7 +127,7 @@ public class BigQueryMetadata
         return BigQueryTableHandle.from(tableInfo);
     }
 
-    // May return null
+    @Nullable
     private TableInfo getBigQueryTable(SchemaTableName tableName)
     {
         return bigQueryClient.getTable(TableId.of(projectId, tableName.getSchemaName(), tableName.getTableName()));
