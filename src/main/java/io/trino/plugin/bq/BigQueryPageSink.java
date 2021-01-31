@@ -72,13 +72,15 @@ public class BigQueryPageSink
 {
     private final BigQueryClient bigQueryClient;
     private final SchemaTableName schemaTableName;
-    private final List<BigQueryColumnHandle> columns;
+    private final List<String> columnNames;
+    private final List<Type> columnTypes;
 
-    public BigQueryPageSink(BigQueryClient bigQueryClient, SchemaTableName schemaTableName, List<BigQueryColumnHandle> columns)
+    public BigQueryPageSink(BigQueryClient bigQueryClient, SchemaTableName schemaTableName, List<String> columnNames, List<Type> columnTypes)
     {
         this.bigQueryClient = bigQueryClient;
         this.schemaTableName = schemaTableName;
-        this.columns = columns;
+        this.columnNames = columnNames;
+        this.columnTypes = columnTypes;
     }
 
     @Override
@@ -90,8 +92,7 @@ public class BigQueryPageSink
             Map<String, Object> row = new HashMap<>();
 
             for (int channel = 0; channel < page.getChannelCount(); channel++) {
-                BigQueryColumnHandle column = columns.get(channel);
-                row.put(column.getName(), getObjectValue(column.getTrinoType(), page.getBlock(channel), position));
+                row.put(columnNames.get(channel), getObjectValue(columnTypes.get(channel), page.getBlock(channel), position));
             }
             batch.addRow(row);
         }

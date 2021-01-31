@@ -36,13 +36,14 @@ public class BigQueryPageSinkProvider
     @Override
     public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorOutputTableHandle outputTableHandle)
     {
-        throw new UnsupportedOperationException();
+        BigQueryOutputTableHandle handle = (BigQueryOutputTableHandle) outputTableHandle;
+        return new BigQueryPageSink(bigQueryClient, handle.getSchemaTableName(), handle.getColumnNames(), handle.getColumnTypes());
     }
 
     @Override
     public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorInsertTableHandle insertTableHandle)
     {
         BigQueryInsertTableHandle handle = (BigQueryInsertTableHandle) insertTableHandle;
-        return new BigQueryPageSink(bigQueryClient, handle.getSchemaTableName(), handle.getColumns());
+        return new BigQueryPageSink(bigQueryClient, handle.getSchemaTableName(), handle.getColumnNames(), handle.getColumnTypes());
     }
 }
