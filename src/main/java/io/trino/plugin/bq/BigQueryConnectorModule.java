@@ -46,6 +46,7 @@ public class BigQueryConnectorModule
         binder.bind(BigQueryMetadata.class).in(Scopes.SINGLETON);
         binder.bind(BigQuerySplitManager.class).in(Scopes.SINGLETON);
         binder.bind(BigQueryPageSourceProvider.class).in(Scopes.SINGLETON);
+        binder.bind(BigQueryPageSinkProvider.class).in(Scopes.SINGLETON);
         configBinder(binder).bindConfig(BigQueryConfig.class);
     }
 
@@ -66,7 +67,7 @@ public class BigQueryConnectorModule
                 .setProjectId(billingProjectId);
         // set credentials of provided
         bigQueryCredentialsSupplier.getCredentials().ifPresent(options::setCredentials);
-        return new BigQueryClient(options.build().getService());
+        return new BigQueryClient(options.build().getService(), config.getProjectId());
     }
 
     // Note that at this point the config has been validated, which means that option 2 or option 3 will always be valid
