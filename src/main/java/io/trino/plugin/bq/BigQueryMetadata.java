@@ -16,6 +16,7 @@ package io.trino.plugin.bq;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.Schema;
+import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
@@ -55,6 +56,7 @@ import java.util.Set;
 import static com.google.cloud.bigquery.TableDefinition.Type.TABLE;
 import static com.google.cloud.bigquery.TableDefinition.Type.VIEW;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.plugin.bq.BigQueryType.toField;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
@@ -231,6 +233,20 @@ public class BigQueryMetadata
     }
 
     @Override
+    public void createTable(ConnectorSession session, ConnectorTableMetadata tableMetadata, boolean ignoreExisting)
+    {
+        createTable(tableMetadata);
+    }
+
+    @Override
+    public void dropTable(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        BigQueryTableHandle bigQueryTable = (BigQueryTableHandle) tableHandle;
+        TableId tableId = TableId.of(projectId, bigQueryTable.getSchemaName(), bigQueryTable.getTableName());
+        bigQueryClient.dropTable(tableId);
+    }
+
+    @Override
     public Optional<LimitApplicationResult<ConnectorTableHandle>> applyLimit(
             ConnectorSession session,
             ConnectorTableHandle handle,
@@ -297,5 +313,21 @@ public class BigQueryMetadata
     private static boolean containSameElements(Iterable<? extends ColumnHandle> first, Iterable<? extends ColumnHandle> second)
     {
         return ImmutableSet.copyOf(first).equals(ImmutableSet.copyOf(second));
+    }
+
+    private void createTable(ConnectorTableMetadata tableMetadata)
+    {
+        SchemaTableName schemaTableName = tableMetadata.getTable();
+        String schemaName = schemaTableName.getSchemaName();
+        String tableName = schemaTableName.getTableName();
+        List<Field> fields = tableMetadata.getColumns().stream()
+                .map(column -> toField(column.getName(), column.getType()))
+                .collect(toImmutableList());
+
+        TableId tableId = TableId.of(schemaName, tableName);
+        TableDefinition tableDefinition = StandardTableDefinition.of(Schema.of(fields));
+        TableInfo tableInfo = TableInfo.newBuilder(tableId, tableDefinition).build();
+
+        bigQueryClient.createTable(tableInfo);
     }
 }

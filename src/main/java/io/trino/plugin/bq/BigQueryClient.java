@@ -74,6 +74,16 @@ public class BigQueryClient
                 .collect(toImmutableList());
     }
 
+    public void createTable(TableInfo tableInfo)
+    {
+        bigQuery.create(tableInfo);
+    }
+
+    public void dropTable(TableId tableId)
+    {
+        bigQuery.delete(tableId);
+    }
+
     public TableResult query(TableId table, List<String> requiredColumns, Optional<String> filter)
     {
         String sql = selectSql(table, requiredColumns, filter);
