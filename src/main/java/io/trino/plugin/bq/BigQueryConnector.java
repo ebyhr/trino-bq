@@ -16,6 +16,7 @@ package io.trino.plugin.bq;
 import io.airlift.log.Logger;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorMetadata;
+import io.trino.spi.connector.ConnectorPageSinkProvider;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
@@ -35,16 +36,19 @@ public class BigQueryConnector
     private final BigQueryMetadata metadata;
     private final BigQuerySplitManager splitManager;
     private final BigQueryPageSourceProvider pageSourceProvider;
+    private final BigQueryPageSinkProvider pageSinkProvider;
 
     @Inject
     public BigQueryConnector(
             BigQueryMetadata metadata,
             BigQuerySplitManager splitManager,
-            BigQueryPageSourceProvider pageSourceProvider)
+            BigQueryPageSourceProvider pageSourceProvider,
+            BigQueryPageSinkProvider pageSinkProvider)
     {
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
+        this.pageSinkProvider = requireNonNull(pageSinkProvider, "pageSinkProvider is null");
     }
 
     @Override
@@ -70,5 +74,11 @@ public class BigQueryConnector
     public ConnectorPageSourceProvider getPageSourceProvider()
     {
         return pageSourceProvider;
+    }
+
+    @Override
+    public ConnectorPageSinkProvider getPageSinkProvider()
+    {
+        return pageSinkProvider;
     }
 }

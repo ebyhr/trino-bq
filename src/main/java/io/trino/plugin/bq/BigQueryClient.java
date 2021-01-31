@@ -14,9 +14,12 @@
 package io.trino.plugin.bq;
 
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryError;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
+import com.google.cloud.bigquery.InsertAllRequest;
+import com.google.cloud.bigquery.InsertAllResponse;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition;
@@ -26,10 +29,12 @@ import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.http.BaseHttpServiceException;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.log.Logger;
+import io.trino.spi.connector.SchemaTableName;
 
 import javax.annotation.Nullable;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.StreamSupport;
@@ -43,10 +48,12 @@ public class BigQueryClient
     private static final Logger log = Logger.get(BigQueryClient.class);
 
     private final BigQuery bigQuery;
+    private final Optional<String> projectId;
 
-    public BigQueryClient(BigQuery bigQuery)
+    public BigQueryClient(BigQuery bigQuery, Optional<String> projectId)
     {
         this.bigQuery = bigQuery;
+        this.projectId = projectId;
     }
 
     @Nullable
@@ -55,9 +62,14 @@ public class BigQueryClient
         return bigQuery.getTable(tableId);
     }
 
+    public TableId getTableId(SchemaTableName schemaTableName)
+    {
+        return TableId.of(getProjectId(), schemaTableName.getSchemaName(), schemaTableName.getTableName());
+    }
+
     public String getProjectId()
     {
-        return bigQuery.getOptions().getProjectId();
+        return projectId.orElse(bigQuery.getOptions().getProjectId());
     }
 
     public Iterable<Dataset> listDatasets(String projectId)
@@ -77,6 +89,16 @@ public class BigQueryClient
     public void createTable(TableInfo tableInfo)
     {
         bigQuery.create(tableInfo);
+    }
+
+    public void insert(InsertAllRequest insertAllRequest)
+    {
+        InsertAllResponse response = bigQuery.insertAll(insertAllRequest);
+        if (response.hasErrors()) {
+            for (Map.Entry<Long, List<BigQueryError>> errors : response.getInsertErrors().entrySet()) {
+                log.error("Failed to insert row: %s, error: %s", errors.getKey(), errors.getValue());
+            }
+        }
     }
 
     public void dropTable(TableId tableId)
