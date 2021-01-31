@@ -25,20 +25,17 @@ import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.http.BaseHttpServiceException;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterators;
 import io.airlift.log.Logger;
 
-import java.util.Iterator;
+import javax.annotation.Nullable;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.stream.StreamSupport;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.lang.String.format;
-import static java.util.Locale.ENGLISH;
 import static java.util.stream.Collectors.joining;
 
 public class BigQueryClient
@@ -46,28 +43,16 @@ public class BigQueryClient
     private static final Logger log = Logger.get(BigQueryClient.class);
 
     private final BigQuery bigQuery;
-    private final ConcurrentMap<TableId, TableId> tableIds = new ConcurrentHashMap<>();
-    private final ConcurrentMap<DatasetId, DatasetId> datasetIds = new ConcurrentHashMap<>();
 
     public BigQueryClient(BigQuery bigQuery)
     {
         this.bigQuery = bigQuery;
     }
 
+    @Nullable
     public TableInfo getTable(TableId tableId)
     {
-        TableId bigQueryTableId = tableIds.get(tableId);
-        Table table = bigQuery.getTable(bigQueryTableId != null ? bigQueryTableId : tableId);
-        if (table != null) {
-            tableIds.putIfAbsent(tableId, table.getTableId());
-            datasetIds.putIfAbsent(toDatasetId(tableId), toDatasetId(table.getTableId()));
-        }
-        return table;
-    }
-
-    public DatasetId toDatasetId(TableId tableId)
-    {
-        return DatasetId.of(tableId.getProject(), tableId.getDataset());
+        return bigQuery.getTable(tableId);
     }
 
     public String getProjectId()
@@ -77,26 +62,16 @@ public class BigQueryClient
 
     public Iterable<Dataset> listDatasets(String projectId)
     {
-        Iterator<Dataset> datasets = bigQuery.listDatasets(projectId).iterateAll().iterator();
-        return () -> Iterators.transform(datasets, this::addDataSetMappingIfNeeded);
+        return bigQuery.listDatasets(projectId).iterateAll();
     }
 
     public Iterable<Table> listTables(DatasetId datasetId, TableDefinition.Type... types)
     {
         Set<TableDefinition.Type> allowedTypes = ImmutableSet.copyOf(types);
-        DatasetId bigQueryDatasetId = datasetIds.getOrDefault(datasetId, datasetId);
-        Iterable<Table> allTables = bigQuery.listTables(bigQueryDatasetId).iterateAll();
+        Iterable<Table> allTables = bigQuery.listTables(datasetId).iterateAll();
         return StreamSupport.stream(allTables.spliterator(), false)
                 .filter(table -> allowedTypes.contains(table.getDefinition().getType()))
                 .collect(toImmutableList());
-    }
-
-    private Dataset addDataSetMappingIfNeeded(Dataset dataset)
-    {
-        DatasetId bigQueryDatasetId = dataset.getDatasetId();
-        DatasetId trinoDatasetId = DatasetId.of(bigQueryDatasetId.getProject(), bigQueryDatasetId.getDataset().toLowerCase(ENGLISH));
-        datasetIds.putIfAbsent(trinoDatasetId, bigQueryDatasetId);
-        return dataset;
     }
 
     public TableResult query(TableId table, List<String> requiredColumns, Optional<String> filter)
@@ -132,7 +107,6 @@ public class BigQueryClient
 
     private String fullTableName(TableId tableId)
     {
-        tableId = tableIds.getOrDefault(tableId, tableId);
         return format("%s.%s.%s", tableId.getProject(), tableId.getDataset(), tableId.getTable());
     }
 }
