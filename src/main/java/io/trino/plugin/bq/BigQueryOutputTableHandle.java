@@ -16,7 +16,7 @@ package io.trino.plugin.bq;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
-import io.trino.spi.connector.ConnectorInsertTableHandle;
+import io.trino.spi.connector.ConnectorOutputTableHandle;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.type.Type;
 
@@ -24,15 +24,15 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-public class BigQueryInsertTableHandle
-        implements ConnectorInsertTableHandle
+public class BigQueryOutputTableHandle
+        implements ConnectorOutputTableHandle
 {
     private final SchemaTableName schemaTableName;
     private final List<String> columnNames;
     private final List<Type> columnTypes;
 
     @JsonCreator
-    public BigQueryInsertTableHandle(
+    public BigQueryOutputTableHandle(
             @JsonProperty("schemaTableName") SchemaTableName schemaTableName,
             @JsonProperty("columnNames") List<String> columnNames,
             @JsonProperty("columnTypes") List<Type> columnTypes)

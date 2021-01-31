@@ -32,7 +32,9 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ColumnMetadata;
 import io.trino.spi.connector.ConnectorInsertTableHandle;
 import io.trino.spi.connector.ConnectorMetadata;
+import io.trino.spi.connector.ConnectorNewTableLayout;
 import io.trino.spi.connector.ConnectorOutputMetadata;
+import io.trino.spi.connector.ConnectorOutputTableHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTableMetadata;
@@ -48,6 +50,7 @@ import io.trino.spi.connector.TableNotFoundException;
 import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.statistics.ComputedStatistics;
+import io.trino.spi.type.Type;
 
 import javax.annotation.Nullable;
 import javax.inject.Inject;
@@ -244,10 +247,24 @@ public class BigQueryMetadata
     }
 
     @Override
+    public ConnectorOutputTableHandle beginCreateTable(ConnectorSession session, ConnectorTableMetadata tableMetadata, Optional<ConnectorNewTableLayout> layout)
+    {
+        return createTable(tableMetadata);
+    }
+
+    @Override
+    public Optional<ConnectorOutputMetadata> finishCreateTable(ConnectorSession session, ConnectorOutputTableHandle tableHandle, Collection<Slice> fragments, Collection<ComputedStatistics> computedStatistics)
+    {
+        return Optional.empty();
+    }
+
+    @Override
     public ConnectorInsertTableHandle beginInsert(ConnectorSession session, ConnectorTableHandle tableHandle, List<ColumnHandle> columns)
     {
         BigQueryTableHandle table = (BigQueryTableHandle) tableHandle;
-        return new BigQueryInsertTableHandle(new SchemaTableName(table.getSchemaName(), table.getTableName()), getTableColumns(table.getTableId()));
+        List<String> columnNames = columns.stream().map(column -> ((BigQueryColumnHandle) column).getName()).collect(toImmutableList());
+        List<Type> columnTypes = columns.stream().map(column -> ((BigQueryColumnHandle) column).getTrinoType()).collect(toImmutableList());
+        return new BigQueryInsertTableHandle(new SchemaTableName(table.getSchemaName(), table.getTableName()), columnNames, columnTypes);
     }
 
     @Override
@@ -333,19 +350,28 @@ public class BigQueryMetadata
         return ImmutableSet.copyOf(first).equals(ImmutableSet.copyOf(second));
     }
 
-    private void createTable(ConnectorTableMetadata tableMetadata)
+    private BigQueryOutputTableHandle createTable(ConnectorTableMetadata tableMetadata)
     {
         SchemaTableName schemaTableName = tableMetadata.getTable();
         String schemaName = schemaTableName.getSchemaName();
         String tableName = schemaTableName.getTableName();
-        List<Field> fields = tableMetadata.getColumns().stream()
-                .map(column -> toField(column.getName(), column.getType()))
-                .collect(toImmutableList());
+
+        ImmutableList.Builder<Field> fields = ImmutableList.builder();
+        ImmutableList.Builder<String> columnsNames = ImmutableList.builder();
+        ImmutableList.Builder<Type> columnsTypes = ImmutableList.builder();
+        for (ColumnMetadata column : tableMetadata.getColumns()) {
+            Field field = toField(column.getName(), column.getType());
+            fields.add(field);
+            columnsNames.add(column.getName());
+            columnsTypes.add(column.getType());
+        }
 
         TableId tableId = TableId.of(schemaName, tableName);
-        TableDefinition tableDefinition = StandardTableDefinition.of(Schema.of(fields));
+        TableDefinition tableDefinition = StandardTableDefinition.of(Schema.of(fields.build()));
         TableInfo tableInfo = TableInfo.newBuilder(tableId, tableDefinition).build();
 
         bigQueryClient.createTable(tableInfo);
+
+        return new BigQueryOutputTableHandle(schemaTableName, columnsNames.build(), columnsTypes.build());
     }
 }
