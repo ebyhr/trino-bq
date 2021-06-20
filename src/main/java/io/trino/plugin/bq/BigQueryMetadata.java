@@ -296,7 +296,7 @@ public class BigQueryMetadata
 
         bigQueryTableHandle = bigQueryTableHandle.withLimit(limit);
 
-        return Optional.of(new LimitApplicationResult<>(bigQueryTableHandle, false));
+        return Optional.of(new LimitApplicationResult<>(bigQueryTableHandle, false, false));
     }
 
     @Override
@@ -324,7 +324,7 @@ public class BigQueryMetadata
 
         bigQueryTableHandle = bigQueryTableHandle.withProjectedColumns(projectedColumns.build());
 
-        return Optional.of(new ProjectionApplicationResult<>(bigQueryTableHandle, projections, assignmentList.build()));
+        return Optional.of(new ProjectionApplicationResult<>(bigQueryTableHandle, projections, assignmentList.build(), false));
     }
 
     @Override
@@ -343,7 +343,7 @@ public class BigQueryMetadata
 
         BigQueryTableHandle updatedHandle = bigQueryTableHandle.withConstraint(newDomain);
 
-        return Optional.of(new ConstraintApplicationResult<>(updatedHandle, constraint.getSummary()));
+        return Optional.of(new ConstraintApplicationResult<>(updatedHandle, constraint.getSummary(), false));
     }
 
     private static boolean containSameElements(Iterable<? extends ColumnHandle> first, Iterable<? extends ColumnHandle> second)
